@@ -1,0 +1,25 @@
+bun install v1.1.38 (a3e18c1b)
+
+Resolving dependencies...
+Downloading @types/react@18.2.48
+Downloading @types/node@20.11.5
+Downloading typescript@5.3.3
+Downloading react@18.2.0
+Downloading react-dom@18.2.0
+Downloading next@14.1.0
+Downloading eslint@8.56.0
+Downloading prettier@3.2.4
+Downloading tailwindcss@3.4.1
+Downloading postcss@8.4.33
+Downloading autoprefixer@10.4.17
+Downloading @prisma/client@5.8.1
+Downloading prisma@5.8.1
+Extracting packages...
+
+ 148 packages installed [2.45s]
+
+ Removed: 3 packages
+ Changed: 12 packages
+ Added: 5 packages
+
+ Lockfile saved.

@@ -12,8 +12,8 @@ use cmds::dotnet::{binlog, dotnet_cmd, dotnet_format_report, dotnet_trx};
 use cmds::git::{diff_cmd, gh_cmd, git, glab_cmd, gt_cmd};
 use cmds::go::{go_cmd, golangci_cmd};
 use cmds::js::{
-    lint_cmd, next_cmd, npm_cmd, playwright_cmd, pnpm_cmd, prettier_cmd, prisma_cmd, tsc_cmd,
-    vitest_cmd,
+    bun_cmd, lint_cmd, next_cmd, npm_cmd, playwright_cmd, pnpm_cmd, prettier_cmd, prisma_cmd,
+    tsc_cmd, vitest_cmd,
 };
 use cmds::jvm::{gradlew_cmd, mvn_cmd};
 use cmds::php::{ecs_cmd, paratest_cmd, pest_cmd, php_cmd, phpstan_cmd, phpunit_cmd, pint_cmd};
@@ -567,6 +567,19 @@ enum Commands {
         args: Vec<String>,
     },
 
+    /// Bun commands with compact output
+    Bun {
+        #[command(subcommand)]
+        command: BunCommands,
+    },
+
+    /// bunx with intelligent routing (tsc, eslint, prisma -> specialized filters)
+    Bunx {
+        /// bunx arguments (command + options)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
     /// Curl with auto-JSON detection and schema output
     Curl {
         /// Curl arguments (URL + options)
@@ -1110,6 +1123,37 @@ enum OcCommands {
         container: Option<String>,
     },
     /// Passthrough: runs any unsupported oc subcommand directly
+    #[command(external_subcommand)]
+    Other(Vec<OsString>),
+}
+
+#[derive(Debug, Subcommand)]
+enum BunCommands {
+    /// Run tests with filtered output (85-90% token reduction)
+    Test {
+        /// Additional bun test arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Install packages (filter progress bars)
+    Install {
+        /// Additional bun install arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Build with compact output
+    Build {
+        /// Additional bun build arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Run script with filtered output
+    Run {
+        /// Script name and arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Passthrough: runs any unsupported bun subcommand directly
     #[command(external_subcommand)]
     Other(Vec<OsString>),
 }
@@ -2251,6 +2295,103 @@ fn run_cli() -> Result<i32> {
 
         Commands::Npm { args } => npm_cmd::run(&args, cli.verbose, cli.skip_env)?,
 
+        Commands::Bun { command } => match command {
+            BunCommands::Test { args } => {
+                bun_cmd::run(bun_cmd::BunCommand::Test, &args, cli.verbose, cli.skip_env)?
+            }
+            BunCommands::Install { args } => bun_cmd::run(
+                bun_cmd::BunCommand::Install,
+                &args,
+                cli.verbose,
+                cli.skip_env,
+            )?,
+            BunCommands::Build { args } => {
+                bun_cmd::run(bun_cmd::BunCommand::Build, &args, cli.verbose, cli.skip_env)?
+            }
+            BunCommands::Run { args } => {
+                if args.is_empty() {
+                    anyhow::bail!("bun run requires a script name");
+                }
+                let script = args[0].clone();
+                bun_cmd::run(
+                    bun_cmd::BunCommand::Run { script },
+                    &args[1..],
+                    cli.verbose,
+                    cli.skip_env,
+                )?
+            }
+            BunCommands::Other(args) => bun_cmd::run_passthrough(&args, cli.verbose)?,
+        },
+
+        Commands::Bunx { args } => {
+            if args.is_empty() {
+                anyhow::bail!("bunx requires a command argument");
+            }
+
+            // Intelligent routing: delegate to specialized filters
+            match args[0].as_str() {
+                "tsc" | "typescript" => tsc_cmd::run(&args[1..], cli.verbose)?,
+                "eslint" => lint_cmd::run(&args[1..], cli.verbose)?,
+                "prisma" => {
+                    if args.len() > 1 {
+                        let prisma_args: Vec<String> = args[2..].to_vec();
+                        match args[1].as_str() {
+                            "generate" => prisma_cmd::run(
+                                prisma_cmd::PrismaCommand::Generate,
+                                &prisma_args,
+                                cli.verbose,
+                            )?,
+                            "db" if args.len() > 2 && args[2] == "push" => prisma_cmd::run(
+                                prisma_cmd::PrismaCommand::DbPush,
+                                &args[3..],
+                                cli.verbose,
+                            )?,
+                            _ => {
+                                let timer = core::tracking::TimedExecution::start();
+                                let mut cmd = core::utils::resolved_command("bunx");
+                                for arg in &args {
+                                    cmd.arg(arg);
+                                }
+                                let status = cmd.status().context("Failed to run bunx prisma")?;
+                                let args_str = args.join(" ");
+                                timer.track_passthrough(
+                                    &format!("bunx {}", args_str),
+                                    &format!("rtk bunx {} (passthrough)", args_str),
+                                );
+                                core::utils::exit_code_from_status(&status, "bunx prisma")
+                            }
+                        }
+                    } else {
+                        let timer = core::tracking::TimedExecution::start();
+                        let status = core::utils::resolved_command("bunx")
+                            .arg("prisma")
+                            .status()
+                            .context("Failed to run bunx prisma")?;
+                        timer.track_passthrough("bunx prisma", "rtk bunx prisma (passthrough)");
+                        core::utils::exit_code_from_status(&status, "bunx prisma")
+                    }
+                }
+                "next" => next_cmd::run(&args[1..], cli.verbose)?,
+                "prettier" => prettier_cmd::run(&args[1..], cli.verbose)?,
+                "playwright" => playwright_cmd::run(&args[1..], cli.verbose)?,
+                _ => {
+                    // Generic passthrough via bun run
+                    let timer = core::tracking::TimedExecution::start();
+                    let mut cmd = core::utils::resolved_command("bunx");
+                    for arg in &args {
+                        cmd.arg(arg);
+                    }
+                    let status = cmd.status().context("Failed to run bunx")?;
+                    let args_str = args.join(" ");
+                    timer.track_passthrough(
+                        &format!("bunx {}", args_str),
+                        &format!("rtk bunx {} (passthrough)", args_str),
+                    );
+                    core::utils::exit_code_from_status(&status, "bunx")
+                }
+            }
+        }
+
         Commands::Curl { args } => curl_cmd::run(&args, cli.verbose)?,
 
         Commands::Discover {
@@ -2748,6 +2889,8 @@ fn is_operational_command(cmd: &Commands) -> bool {
             | Commands::Cargo { .. }
             | Commands::Npm { .. }
             | Commands::Npx { .. }
+            | Commands::Bun { .. }
+            | Commands::Bunx { .. }
             | Commands::Curl { .. }
             | Commands::Ruff { .. }
             | Commands::Pytest { .. }

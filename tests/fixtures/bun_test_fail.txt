@@ -1,0 +1,34 @@
+bun test v1.1.38 (a3e18c1b)
+
+src/utils/math.test.ts:
+✓ adds two numbers [0.12ms]
+✓ subtracts two numbers [0.05ms]
+✗ multiplies negative numbers
+  Expected: -6
+  Received: 6
+
+    at src/utils/math.test.ts:15:3
+
+src/utils/string.test.ts:
+✓ capitalizes first letter [0.15ms]
+✓ trims whitespace [0.02ms]
+✗ handles unicode characters
+  Expected: "HÉLLO"
+  Received: "HéLLO"
+
+    at src/utils/string.test.ts:28:3
+
+src/api/client.test.ts:
+✓ fetches data successfully [3.12ms]
+✗ retries on network failure
+  Timeout: test exceeded 5000ms
+  Expected fetch to be called 3 times, but was called 1 time
+
+    at src/api/client.test.ts:42:3
+✓ sends auth headers [0.78ms]
+
+ 7 pass
+ 3 fail
+ 1 skip
+ 15 expect() calls
+Ran 11 tests across 3 files. [5320.00ms]
