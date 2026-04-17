@@ -178,6 +178,7 @@ rtk gh run list                 # Workflow run status
 ```bash
 rtk jest                        # Jest compact (failures only)
 rtk vitest                      # Vitest compact (failures only)
+rtk bun test                    # Bun tests (failures + error context, -85%)
 rtk playwright test             # E2E results (failures only)
 rtk pytest                      # Python tests (-90%)
 rtk go test                     # Go tests (NDJSON, -90%)
@@ -194,6 +195,8 @@ rtk lint                        # ESLint grouped by rule/file
 rtk lint biome                  # Supports other linters
 rtk tsc                         # TypeScript errors grouped by file
 rtk next build                  # Next.js build compact
+rtk bun build                   # Bun build compact
+rtk bunx <cmd>                  # Routes bunx tsc/eslint/prisma to RTK filters
 rtk prettier --check .          # Files needing formatting
 rtk cargo build                 # Cargo build (-80%)
 rtk cargo clippy                # Cargo clippy (-80%)
@@ -209,6 +212,8 @@ rtk sbt run                     # Strip SBT preamble noise
 ```bash
 rtk pnpm list                   # Compact dependency tree
 rtk uv run pytest               # Preserve uv env, errors only
+rtk bun install                 # Bun install (strip progress bars)
+rtk bun run <script>            # Bun script runner (filtered output)
 rtk pip list                    # Python packages (auto-detect uv)
 rtk pip outdated                # Outdated packages
 rtk bundle install              # Ruby gems (strip Using lines)

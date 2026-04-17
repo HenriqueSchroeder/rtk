@@ -53,6 +53,11 @@ Typical savings: 60-99%.
 |---------|---------|--------------|
 | `jest` | 94-99% | Failures only |
 | `vitest` | 94-99% | Failures only |
+| `bun test` | 85-90% | Failures + error context, passes suppressed |
+| `bun install` | 80% | Progress bars stripped, summary kept |
+| `bun build` | 80% | Compact build output |
+| `bun run <script>` | varies | Script output with error focus |
+| `bunx <cmd>` | varies | Routed to specialized filters (tsc, eslint, prisma) |
 | `tsc` | 75% | Type errors grouped by file |
 | `eslint` | 84% | Violations grouped by rule |
 | `pnpm list` | 70-90% | Compact dependency tree |
