@@ -1,0 +1,140 @@
+bun test v1.3.10 (30e609e0)
+
+
+tests/routes/contexts.test.ts:
+(pass) context routes > GET /contexts returns empty list initially [26.73ms]
+(pass) context routes > PUT + GET /contexts/system.md round-trips content [14.51ms]
+(pass) context routes > GET /contexts lists created files [24.35ms]
+(pass) context routes > PUT /contexts/providers/anthropic.md creates nested file [17.57ms]
+
+tests/routes/executions.test.ts:
+(pass) execution routes > GET /executions/:id returns execution detail [14.16ms]
+(pass) execution routes > GET /executions/:id returns 404 for unknown id [10.62ms]
+(pass) execution routes > GET /executions/:id/logs returns logs [12.63ms]
+(pass) execution routes > GET /executions/:id/logs returns 404 for unknown execution [13.11ms]
+(pass) execution routes > POST /executions/:id/cancel > returns 404 for unknown execution [12.01ms]
+(pass) execution routes > POST /executions/:id/cancel > returns 409 for already completed execution [11.98ms]
+(pass) execution routes > POST /executions/:id/cancel > returns 409 when no abort controller is registered [14.10ms]
+(pass) execution routes > POST /executions/:id/cancel > returns cancelled: true when abort controller exists [13.60ms]
+
+tests/routes/notifications.test.ts:
+(pass) notification routes > GET /notifications returns empty list [11.55ms]
+(pass) notification routes > GET /notifications returns seeded notifications [11.45ms]
+(pass) notification routes > GET /notifications?unread=true filters unread only [11.91ms]
+(pass) notification routes > GET /notifications supports limit and offset [9.76ms]
+(pass) notification routes > GET /notifications/count returns unread count [11.85ms]
+(pass) notification routes > POST /notifications/:id/read marks notification as read [12.70ms]
+(pass) notification routes > POST /notifications/read-all marks all as read [12.24ms]
+(pass) notification preference routes > GET /notification-preferences requires scope param [11.62ms]
+(pass) notification preference routes > GET /notification-preferences?scope=system returns preferences object [12.55ms]
+(pass) notification preference routes > GET /notification-preferences rejects invalid scope [11.12ms]
+(pass) notification preference routes > PUT /notification-preferences updates a preference [11.92ms]
+(pass) notification preference routes > PUT /notification-preferences validates scope [11.14ms]
+(pass) notification preference routes > PUT /notification-preferences validates value [12.31ms]
+(pass) notification preference routes > PUT /notification-preferences requires scopeId [11.68ms]
+(pass) notification preference routes > PUT /notification-preferences requires eventType [13.92ms]
+
+tests/routes/tags.test.ts:
+(pass) tag routes > PATCH /tags/:id updates tag name [14.81ms]
+(pass) tag routes > PATCH /tags/:id updates tag color [11.18ms]
+(pass) tag routes > PATCH /tags/:id updates skillNames [11.88ms]
+(pass) tag routes > PATCH /tags/:id returns 404 for unknown id [10.73ms]
+(pass) tag routes > DELETE /tags/:id deletes tag [10.56ms]
+(pass) tag routes > DELETE /tags/:id returns 404 for nonexistent tag [9.79ms]
+
+tests/routes/tasks.test.ts:
+(pass) task routes > POST /tasks creates a task [12.30ms]
+(pass) task routes > GET /tasks/:id returns task with comments, timeline, executions [13.70ms]
+(pass) task routes > GET /tasks/:id returns 404 for unknown [9.92ms]
+(pass) task routes > PATCH /tasks/:id updates task [13.00ms]
+(pass) task routes > DELETE /tasks/:id deletes task [13.12ms]
+110 |
+111 |     const res = await app.request(json("POST", `/tasks/${created.id}/move`, { columnId: queueColumn.id }))
+112 |
+113 |     expect(res.status).toBe(200)
+114 |     const body = await res.json()
+115 |     expect(body.columnId).toBe(queueColumn.id)
+                                ^
+error: expect(received).toBe(expected)
+
+Expected: "d7f68205-8bd4-494c-a8a5-7939b4f6a443"
+Received: undefined
+
+      at <anonymous> (/home/henrique/Github/station/packages/api/tests/routes/tasks.test.ts:115:27)
+(fail) task routes > POST /tasks/:id/move moves task to another column [17.04ms]
+(pass) task routes > POST /tasks/:id/comments adds a comment [12.16ms]
+(pass) task routes > GET /tasks/:id/executions lists executions [12.16ms]
+
+tests/routes/providers.test.ts:
+(pass) provider routes > GET /providers/connections returns 200 [11.65ms]
+20 |   test("DELETE /providers/connections/:id returns 204", async () => {
+21 |     const res = await app.request(
+22 |       new Request("http://localhost/api/providers/connections/some-provider", { method: "DELETE" }),
+23 |     )
+24 |
+25 |     expect(res.status).toBe(204)
+                            ^
+error: expect(received).toBe(expected)
+
+Expected: 204
+Received: 404
+
+      at <anonymous> (/home/henrique/Github/station/packages/api/tests/routes/providers.test.ts:25:24)
+(fail) provider routes > DELETE /providers/connections/:id returns 204 [11.10ms]
+
+tests/routes/smoke.test.ts:
+(pass) API smoke test > app boots and returns 404 for unknown routes [14.23ms]
+(pass) API smoke test > CORS headers are present [12.20ms]
+
+tests/routes/boards.test.ts:
+(pass) Board routes > GET /boards/:id returns board with columns [12.20ms]
+(pass) Board routes > GET /boards/:id returns 404 for unknown [9.84ms]
+(pass) Board routes > PATCH /boards/:id updates board name [12.01ms]
+(pass) Board routes > DELETE /boards/:id deletes board [12.98ms]
+(pass) Board routes > POST /boards/:id/columns creates a column [11.82ms]
+(pass) Board routes > PATCH /boards/:id/columns/reorder reorders columns [11.34ms]
+(pass) Board routes > PATCH /boards/:id/columns/:colId updates column [12.27ms]
+(pass) Board routes > DELETE /boards/:id/columns/:colId deletes empty column [10.73ms]
+(pass) Board routes > DELETE /boards/:id/columns/:colId returns 409 when column has tasks [10.52ms]
+(pass) Board routes > GET /boards/:id/tasks returns tasks [11.80ms]
+
+tests/routes/analytics.test.ts:
+(pass) Analytics routes > GET /analytics/dashboard returns dashboard [12.21ms]
+(pass) Analytics routes > GET /analytics/models returns model usage [11.49ms]
+(pass) Analytics routes > GET /analytics/tools returns tool usage [11.63ms]
+(pass) Analytics routes > GET /analytics/daily returns daily stats [11.13ms]
+(pass) Analytics routes > GET /analytics/dashboard accepts valid date filters [13.40ms]
+(pass) Analytics routes > GET /analytics/dashboard rejects invalid date format [10.68ms]
+
+tests/routes/skills.test.ts:
+(pass) skill routes > GET /skills returns empty list initially [14.99ms]
+(pass) skill routes > POST /skills creates a global skill [14.20ms]
+(pass) skill routes > GET /skills lists created global skill [24.93ms]
+(pass) skill routes > GET /skills/projects/:projectId returns skills for project [15.09ms]
+(pass) skill routes > GET /skills/projects/:projectId returns 404 for unknown project [15.76ms]
+(pass) skill routes > POST /skills/projects/:projectId creates a project skill [17.30ms]
+(pass) skill routes > POST /skills/projects/:projectId returns 404 for unknown project [14.56ms]
+(pass) skill routes > GET /skills/projects/:projectId/:name returns skill detail [16.49ms]
+(pass) skill routes > GET /skills/projects/:projectId/:name returns 404 for unknown skill [11.55ms]
+(pass) skill routes > PUT /skills/projects/:projectId/:name updates skill content [14.59ms]
+(pass) skill routes > DELETE /skills/projects/:projectId/:name deletes skill [18.61ms]
+
+tests/routes/projects.test.ts:
+(pass) project routes > POST /projects creates a project and returns 201 [10.65ms]
+(pass) project routes > POST /projects with createDefaultBoard creates board + columns [20.49ms]
+(pass) project routes > GET /projects lists all projects [10.10ms]
+(pass) project routes > GET /projects/:id returns project [9.90ms]
+(pass) project routes > GET /projects/:id returns 404 for unknown id [10.42ms]
+(pass) project routes > PATCH /projects/:id updates project [11.11ms]
+(pass) project routes > DELETE /projects/:id deletes project [11.18ms]
+(pass) project routes > GET /projects/:id/boards lists boards [10.59ms]
+(pass) project routes > POST /projects/:id/boards creates a board [11.56ms]
+
+2 tests failed:
+(fail) task routes > POST /tasks/:id/move moves task to another column [17.04ms]
+(fail) provider routes > DELETE /providers/connections/:id returns 204 [11.10ms]
+
+ 79 pass
+ 2 fail
+ 180 expect() calls
+Ran 81 tests across 11 files. [1362.00ms]

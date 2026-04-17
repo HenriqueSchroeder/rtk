@@ -10,13 +10,16 @@ use std::ffi::OsString;
 lazy_static! {
     /// Matches bun test summary line: "X pass, Y fail, Z skip" (with optional ANSI)
     static ref BUN_TEST_SUMMARY_RE: Regex =
-        Regex::new(r"(\d+)\s+pass").unwrap();
+        Regex::new(r"^\s*\d+\s+pass").unwrap();
     static ref BUN_TEST_FAIL_COUNT_RE: Regex =
-        Regex::new(r"(\d+)\s+fail").unwrap();
+        Regex::new(r"^\s*\d+\s+fail$").unwrap();
     static ref BUN_TEST_SKIP_RE: Regex =
-        Regex::new(r"(\d+)\s+skip").unwrap();
+        Regex::new(r"^\s*\d+\s+skip").unwrap();
     static ref BUN_TEST_EXPECT_RE: Regex =
-        Regex::new(r"(\d+)\s+expect").unwrap();
+        Regex::new(r"^\s*\d+\s+expect").unwrap();
+    /// Matches "X tests failed:" trailing summary section
+    static ref BUN_TESTS_FAILED_RE: Regex =
+        Regex::new(r"^\d+\s+tests?\s+failed:").unwrap();
 
     /// Matches bun install summary: "bun install v1.x (Xms)" or "X packages installed"
     static ref BUN_INSTALL_DONE_RE: Regex =
@@ -65,7 +68,7 @@ fn run_test(args: &[String], verbose: u8) -> Result<i32> {
         cmd,
         "bun",
         &format!("test {}", args.join(" ")),
-        |raw| filter_bun_test(raw),
+        filter_bun_test,
         runner::RunOptions::default(),
     )
 }
@@ -88,7 +91,7 @@ fn run_install(args: &[String], verbose: u8, skip_env: bool) -> Result<i32> {
         cmd,
         "bun",
         &format!("install {}", args.join(" ")),
-        |raw| filter_bun_install(raw),
+        filter_bun_install,
         runner::RunOptions::default(),
     )
 }
@@ -108,7 +111,7 @@ fn run_build(args: &[String], verbose: u8) -> Result<i32> {
         cmd,
         "bun",
         &format!("build {}", args.join(" ")),
-        |raw| filter_bun_build(raw),
+        filter_bun_build,
         runner::RunOptions::default(),
     )
 }
@@ -131,7 +134,7 @@ fn run_script(script: &str, args: &[String], verbose: u8, skip_env: bool) -> Res
         cmd,
         "bun",
         &format!("run {} {}", script, args.join(" ")),
-        |raw| filter_bun_run(raw),
+        filter_bun_run,
         runner::RunOptions::default(),
     )
 }
@@ -142,21 +145,9 @@ pub fn run_passthrough(args: &[OsString], verbose: u8) -> Result<i32> {
 
 /// Filter bun test output: strip passing tests, keep failures and summary.
 ///
-/// Bun test output format:
-/// ```text
-/// bun test v1.1.0 (abcdef0)
-///
-/// path/to/test.ts:
-/// ✓ test name [0.50ms]
-/// ✗ failing test
-///   ... error details ...
-///
-///  10 pass
-///  1 fail
-///  2 skip
-///  50 expect() calls
-/// Ran 11 tests across 3 files. [150.00ms]
-/// ```
+/// Handles both TTY format (✓/✗) and piped format ((pass)/(fail)).
+/// Bun outputs error context BEFORE the failure marker, so we buffer
+/// potential error lines and flush them when a (fail)/✗ marker appears.
 fn filter_bun_test(output: &str) -> String {
     let clean = strip_ansi(output);
     let lines: Vec<&str> = clean.lines().collect();
@@ -165,51 +156,70 @@ fn filter_bun_test(output: &str) -> String {
         return String::new();
     }
 
-    let mut failures: Vec<&str> = Vec::new();
+    let mut failures: Vec<String> = Vec::new();
     let mut summary_lines: Vec<&str> = Vec::new();
-    let mut in_failure = false;
+    let mut error_buffer: Vec<&str> = Vec::new();
     let mut has_failures = false;
+    let mut in_failed_summary = false;
 
     for line in &lines {
         let trimmed = line.trim();
 
-        // Detect failure marker
-        if trimmed.starts_with("✗") || trimmed.starts_with("✘") || trimmed.starts_with("FAIL") {
-            in_failure = true;
+        // "X tests failed:" trailing section — skip (duplicates already captured)
+        if BUN_TESTS_FAILED_RE.is_match(trimmed) {
+            in_failed_summary = true;
+            error_buffer.clear();
+            continue;
+        }
+        if in_failed_summary {
+            if is_fail_marker(trimmed) || trimmed.is_empty() {
+                continue;
+            }
+            in_failed_summary = false;
+            // Fall through to summary detection
+        }
+
+        // Failure marker — flush error buffer as context
+        if is_fail_marker(trimmed) {
             has_failures = true;
-            failures.push(line);
+            for buf_line in &error_buffer {
+                failures.push(buf_line.to_string());
+            }
+            error_buffer.clear();
+            failures.push(line.to_string());
             continue;
         }
 
-        // Collect failure details (indented lines after a failure)
-        if in_failure {
-            if trimmed.is_empty()
-                || trimmed.starts_with("✓")
-                || trimmed.starts_with("✔")
-                || trimmed.starts_with("bun test")
-            {
-                in_failure = false;
-            } else {
-                failures.push(line);
-                continue;
-            }
+        // Pass marker or file header — discard buffered lines (not error context)
+        if is_pass_marker(trimmed) || is_test_file_header(trimmed) || trimmed.starts_with("bun test") {
+            error_buffer.clear();
+            continue;
         }
 
-        // Collect summary lines (pass/fail/skip counts and "Ran X tests" line)
+        // Summary lines
         if BUN_TEST_SUMMARY_RE.is_match(trimmed)
             || BUN_TEST_FAIL_COUNT_RE.is_match(trimmed)
             || BUN_TEST_SKIP_RE.is_match(trimmed)
             || BUN_TEST_EXPECT_RE.is_match(trimmed)
             || trimmed.starts_with("Ran ")
         {
+            error_buffer.clear();
             summary_lines.push(trimmed);
+            continue;
         }
+
+        // Skip empty lines (don't buffer)
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // Buffer as potential error context (will be flushed if followed by a fail marker)
+        error_buffer.push(trimmed);
     }
 
     let mut result = Vec::new();
 
     if has_failures {
-        // Show failures
         result.push("FAILURES:".to_string());
         for line in &failures {
             result.push(line.to_string());
@@ -217,13 +227,11 @@ fn filter_bun_test(output: &str) -> String {
         result.push(String::new());
     }
 
-    // Always show summary
     if !summary_lines.is_empty() {
         for line in &summary_lines {
             result.push(line.to_string());
         }
     } else {
-        // Fallback: return compact summary if we couldn't parse
         result.push("bun test: completed".to_string());
     }
 
@@ -233,6 +241,18 @@ fn filter_bun_test(output: &str) -> String {
     } else {
         output
     }
+}
+
+fn is_fail_marker(line: &str) -> bool {
+    line.starts_with('✗') || line.starts_with('✘') || line.starts_with("(fail)") || line.starts_with("FAIL")
+}
+
+fn is_pass_marker(line: &str) -> bool {
+    line.starts_with('✓') || line.starts_with('✔') || line.starts_with("(pass)")
+}
+
+fn is_test_file_header(line: &str) -> bool {
+    line.ends_with(':') && (line.contains(".test.") || line.contains(".spec."))
 }
 
 /// Filter bun install output: strip progress bars, keep summary.
@@ -357,9 +377,11 @@ mod tests {
         let output = filter_bun_test(input);
 
         // Should NOT contain individual test lines
-        assert!(!output.contains("✓"));
+        assert!(!output.contains("(pass)"), "Filtered output still contains passing tests");
         // Should contain summary
         assert!(output.contains("pass"));
+        // Should NOT contain failure header
+        assert!(!output.contains("FAILURES:"));
 
         // Token savings
         let savings =
@@ -376,9 +398,19 @@ mod tests {
         let input = include_str!("../../../tests/fixtures/bun_test_fail.txt");
         let output = filter_bun_test(input);
 
-        // Should contain failure info
-        assert!(output.contains("FAILURES:"));
-        assert!(output.contains("✗") || output.contains("fail"));
+        // Should contain failure header and error details
+        assert!(output.contains("FAILURES:"), "Missing FAILURES header:\n{}", output);
+        assert!(
+            output.contains("(fail)") || output.contains("fail"),
+            "Missing failure markers:\n{}", output
+        );
+        // Should contain error context (captured from lines before the marker)
+        assert!(
+            output.contains("Expected:") && output.contains("Received:"),
+            "Missing error details:\n{}", output
+        );
+        // Should NOT contain passing tests
+        assert!(!output.contains("(pass)"), "Contains passing tests:\n{}", output);
     }
 
     #[test]
@@ -444,5 +476,64 @@ mod tests {
     fn test_filter_bun_build_empty() {
         let output = filter_bun_build("");
         assert_eq!(output, "bun build: ok");
+    }
+
+    #[test]
+    fn test_filter_bun_test_real_output() {
+        let input = include_str!("../../../tests/fixtures/bun_test_real.txt");
+        let output = filter_bun_test(input);
+
+        // Must NOT contain passing test lines
+        assert!(
+            !output.contains("(pass)"),
+            "Filtered output still contains passing tests:\n{}",
+            output
+        );
+        // Must contain failure details with error context
+        assert!(
+            output.contains("FAILURES:"),
+            "Filtered output missing FAILURES header:\n{}",
+            output
+        );
+        assert!(
+            output.contains("Expected:") && output.contains("Received:"),
+            "Filtered output missing error details:\n{}",
+            output
+        );
+        // Must contain summary
+        assert!(
+            output.contains("79 pass"),
+            "Filtered output missing summary:\n{}",
+            output
+        );
+        assert!(
+            output.contains("Ran 81 tests"),
+            "Filtered output missing run count:\n{}",
+            output
+        );
+
+        // Token savings must be >= 60%
+        let input_tokens = count_tokens(input);
+        let output_tokens = count_tokens(&output);
+        let savings = 100.0 - (output_tokens as f64 / input_tokens as f64 * 100.0);
+        assert!(
+            savings >= 60.0,
+            "bun test (real): expected >=60% savings, got {:.1}% ({} -> {} tokens)\nOutput:\n{}",
+            savings,
+            input_tokens,
+            output_tokens,
+            output
+        );
+    }
+
+    #[test]
+    fn test_filter_bun_test_tty_format() {
+        // TTY format uses ✓/✗ instead of (pass)/(fail)
+        let input = "bun test v1.1.0 (abc)\n\ntest.ts:\n✓ passes [1ms]\n  Expected: 1\n  Received: 2\n✗ fails [1ms]\n\n 1 pass\n 1 fail\n 2 expect() calls\nRan 2 tests across 1 files. [10.00ms]\n";
+        let output = filter_bun_test(input);
+
+        assert!(output.contains("FAILURES:"), "Missing FAILURES for TTY format:\n{}", output);
+        assert!(output.contains("Expected:"), "Missing error context for TTY format:\n{}", output);
+        assert!(output.contains("1 pass"), "Missing summary for TTY format:\n{}", output);
     }
 }

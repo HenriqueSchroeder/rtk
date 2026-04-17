@@ -3744,6 +3744,20 @@ mod tests {
     }
 
     #[test]
+    fn test_bun_test_with_cwd() {
+        let cli = Cli::try_parse_from(["rtk", "bun", "test", "--cwd", "packages/api"]).unwrap();
+        match cli.command {
+            Commands::Bun { command } => match command {
+                BunCommands::Test { args } => {
+                    assert_eq!(args, vec!["--cwd", "packages/api"]);
+                }
+                _ => panic!("Expected BunCommands::Test"),
+            },
+            _ => panic!("Expected Commands::Bun"),
+        }
+    }
+
+    #[test]
     fn test_init_uninstall_agent_pi_parses() {
         let cli = Cli::try_parse_from(["rtk", "init", "--uninstall", "--agent", "pi", "--global"])
             .unwrap();
@@ -3759,6 +3773,31 @@ mod tests {
                 assert!(global);
             }
             _ => panic!("Expected Init command"),
+        }
+    }
+
+    #[test]
+    fn test_bun_run_script() {
+        let cli = Cli::try_parse_from(["rtk", "bun", "run", "dev"]).unwrap();
+        match cli.command {
+            Commands::Bun { command } => match command {
+                BunCommands::Run { args } => {
+                    assert_eq!(args, vec!["dev"]);
+                }
+                _ => panic!("Expected BunCommands::Run"),
+            },
+            _ => panic!("Expected Commands::Bun"),
+        }
+    }
+
+    #[test]
+    fn test_bunx_routing() {
+        let cli = Cli::try_parse_from(["rtk", "bunx", "eslint", "."]).unwrap();
+        match cli.command {
+            Commands::Bunx { args } => {
+                assert_eq!(args, vec!["eslint", "."]);
+            }
+            _ => panic!("Expected Commands::Bunx"),
         }
     }
 }
