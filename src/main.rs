@@ -2299,29 +2299,14 @@ fn run_cli() -> Result<i32> {
         Commands::Npm { args } => npm_cmd::run(&args, cli.verbose, cli.skip_env)?,
 
         Commands::Bun { command } => match command {
-            BunCommands::Test { args } => {
-                bun_cmd::run(bun_cmd::BunCommand::Test, &args, cli.verbose, cli.skip_env)?
-            }
-            BunCommands::Install { args } => bun_cmd::run(
-                bun_cmd::BunCommand::Install,
-                &args,
-                cli.verbose,
-                cli.skip_env,
-            )?,
-            BunCommands::Build { args } => {
-                bun_cmd::run(bun_cmd::BunCommand::Build, &args, cli.verbose, cli.skip_env)?
-            }
+            BunCommands::Test { args } => bun_cmd::test(&args, cli.verbose)?,
+            BunCommands::Install { args } => bun_cmd::install(&args, cli.verbose, cli.skip_env)?,
+            BunCommands::Build { args } => bun_cmd::build(&args, cli.verbose)?,
             BunCommands::Run { args } => {
                 if args.is_empty() {
                     anyhow::bail!("bun run requires a script name");
                 }
-                let script = args[0].clone();
-                bun_cmd::run(
-                    bun_cmd::BunCommand::Run { script },
-                    &args[1..],
-                    cli.verbose,
-                    cli.skip_env,
-                )?
+                bun_cmd::run(&args[0], &args[1..], cli.verbose, cli.skip_env)?
             }
             BunCommands::Other(args) => bun_cmd::run_passthrough(&args, cli.verbose)?,
         },

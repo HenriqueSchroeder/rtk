@@ -36,24 +36,7 @@ lazy_static! {
         Regex::new(r"^\s*(\x1b\[[0-9;]*m)*\s*$").unwrap();
 }
 
-#[derive(Debug, Clone)]
-pub enum BunCommand {
-    Test,
-    Install,
-    Build,
-    Run { script: String },
-}
-
-pub fn run(cmd: BunCommand, args: &[String], verbose: u8, skip_env: bool) -> Result<i32> {
-    match cmd {
-        BunCommand::Test => run_test(args, verbose),
-        BunCommand::Install => run_install(args, verbose, skip_env),
-        BunCommand::Build => run_build(args, verbose),
-        BunCommand::Run { script } => run_script(&script, args, verbose, skip_env),
-    }
-}
-
-fn run_test(args: &[String], verbose: u8) -> Result<i32> {
+pub fn test(args: &[String], verbose: u8) -> Result<i32> {
     let mut cmd = resolved_command("bun");
     cmd.arg("test");
     for arg in args {
@@ -73,7 +56,7 @@ fn run_test(args: &[String], verbose: u8) -> Result<i32> {
     )
 }
 
-fn run_install(args: &[String], verbose: u8, skip_env: bool) -> Result<i32> {
+pub fn install(args: &[String], verbose: u8, skip_env: bool) -> Result<i32> {
     let mut cmd = resolved_command("bun");
     cmd.arg("install");
     for arg in args {
@@ -96,7 +79,7 @@ fn run_install(args: &[String], verbose: u8, skip_env: bool) -> Result<i32> {
     )
 }
 
-fn run_build(args: &[String], verbose: u8) -> Result<i32> {
+pub fn build(args: &[String], verbose: u8) -> Result<i32> {
     let mut cmd = resolved_command("bun");
     cmd.arg("build");
     for arg in args {
@@ -116,7 +99,7 @@ fn run_build(args: &[String], verbose: u8) -> Result<i32> {
     )
 }
 
-fn run_script(script: &str, args: &[String], verbose: u8, skip_env: bool) -> Result<i32> {
+pub fn run(script: &str, args: &[String], verbose: u8, skip_env: bool) -> Result<i32> {
     let mut cmd = resolved_command("bun");
     cmd.arg("run").arg(script);
     for arg in args {
