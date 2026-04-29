@@ -2223,8 +2223,11 @@ fn run_cli() -> Result<i32> {
             0
         }
 
-        Commands::Jest { ref args } | Commands::Vitest { ref args } => {
-            vitest_cmd::run_test(&cli.command, args, cli.verbose)?
+        Commands::Jest { ref args } => {
+            vitest_cmd::run_test(vitest_cmd::TestFramework::Jest, args, cli.verbose)?
+        }
+        Commands::Vitest { ref args } => {
+            vitest_cmd::run_test(vitest_cmd::TestFramework::Vitest, args, cli.verbose)?
         }
 
         Commands::Prisma { command } => match command {
@@ -2331,7 +2334,15 @@ fn run_cli() -> Result<i32> {
             // Intelligent routing: delegate to specialized filters
             match args[0].as_str() {
                 "tsc" | "typescript" => tsc_cmd::run(&args[1..], cli.verbose)?,
-                "eslint" => lint_cmd::run(&args[1..], cli.verbose)?,
+                "eslint" | "biome" => lint_cmd::run(&args[1..], cli.verbose)?,
+                "jest" => {
+                    vitest_cmd::run_test(vitest_cmd::TestFramework::Jest, &args[1..], cli.verbose)?
+                }
+                "vitest" => vitest_cmd::run_test(
+                    vitest_cmd::TestFramework::Vitest,
+                    &args[1..],
+                    cli.verbose,
+                )?,
                 "prisma" => {
                     if args.len() > 1 {
                         let prisma_args: Vec<String> = args[2..].to_vec();

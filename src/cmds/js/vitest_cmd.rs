@@ -12,7 +12,20 @@ use crate::parser::{
     truncate_passthrough, FormatMode, OutputParser, ParseResult, TestFailure, TestResult,
     TokenFormatter,
 };
-use crate::Commands;
+#[derive(Debug, Clone, Copy)]
+pub enum TestFramework {
+    Jest,
+    Vitest,
+}
+
+impl TestFramework {
+    fn name(&self) -> &'static str {
+        match self {
+            TestFramework::Jest => "jest",
+            TestFramework::Vitest => "vitest",
+        }
+    }
+}
 
 /// Vitest JSON output structures (tool-specific format)
 #[derive(Debug, Deserialize)]
@@ -205,33 +218,31 @@ fn extract_failures_regex(output: &str) -> Vec<TestFailure> {
     failures
 }
 
-pub fn run_test(command: &Commands, args: &[String], verbose: u8) -> Result<i32> {
+pub fn run_test(framework: TestFramework, args: &[String], verbose: u8) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
     let mut passthrough_requested = false;
+    let framework_name = framework.name();
 
-    let (framework, mut cmd) = match command {
-        Commands::Vitest { .. } => {
-            let framework = "vitest";
-            let mut cmd = package_manager_exec(framework);
+    let mut cmd = match framework {
+        TestFramework::Vitest => {
+            let mut cmd = package_manager_exec(framework_name);
             let effective_args = build_vitest_effective_args(args);
             passthrough_requested = effective_args.passthrough;
             cmd.args(effective_args.args);
-            (framework, cmd)
+            cmd
         }
-        Commands::Jest { .. } => {
-            let framework = "jest";
-            let mut cmd = package_manager_exec(framework);
+        TestFramework::Jest => {
+            let mut cmd = package_manager_exec(framework_name);
             cmd
                 // Force non-watch mode
                 .arg("--no-watch")
                 // Enable JSON structured output
                 .arg("--json");
-            (framework, cmd)
+            cmd
         }
-        _ => unreachable!(),
     };
 
-    if !matches!(command, Commands::Vitest { .. }) {
+    if !matches!(framework, TestFramework::Vitest) {
         for arg in args {
             if arg == "run"
                 || arg.starts_with("--json")
@@ -244,24 +255,24 @@ pub fn run_test(command: &Commands, args: &[String], verbose: u8) -> Result<i32>
         }
     }
 
-    let result = exec_capture(&mut cmd).context(format!("Failed to run {}", framework))?;
+    let result = exec_capture(&mut cmd).context(format!("Failed to run {}", framework_name))?;
     let combined = result.combined();
 
     let filtered = format_test_output(
-        framework,
+        framework_name,
         &result.stdout,
         &combined,
         passthrough_requested,
         verbose,
     );
-    let tee_label = format!("{}_run", framework);
+    let tee_label = format!("{}_run", framework_name);
 
     let rendered = render_test_output(&filtered, &combined, &tee_label, result.exit_code);
     let shown = crate::core::runner::emit_guarded(&rendered, None, &combined);
 
     timer.track(
-        format!("{} run", framework).as_str(),
-        format!("rtk {} run", framework).as_str(),
+        format!("{} run", framework_name).as_str(),
+        format!("rtk {} run", framework_name).as_str(),
         &combined,
         &shown,
     );
