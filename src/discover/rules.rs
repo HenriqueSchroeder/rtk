@@ -89,9 +89,9 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        pattern: r"^bunx\s+",
+        pattern: r"^(bun\s+x|bunx)(\s|$)",
         rtk_cmd: "rtk bunx",
-        rewrite_prefixes: &["bunx"],
+        rewrite_prefixes: &["bun x", "bunx"],
         category: "PackageManager",
         savings_pct: 70.0,
         subcmd_savings: &[],
@@ -143,9 +143,10 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx)\s+)?tsc(\s|$)",
+        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx|bun\s+x)\s+)?tsc(\s|$)",
         rtk_cmd: "rtk tsc",
         rewrite_prefixes: &[
+            "bun x tsc",
             "bunx tsc",
             "npm exec tsc",
             "npm rum tsc",
@@ -169,10 +170,13 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx)\s+)?(biome|eslint|lint)(\s|$)",
+        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx|bun\s+x)\s+)?(biome|eslint|lint)(\s|$)",
         rtk_cmd: "rtk lint",
         rewrite_prefixes: &[
             "biome",
+            "bun x biome",
+            "bun x eslint",
+            "bun x lint",
             "bunx biome",
             "bunx eslint",
             "bunx lint",
@@ -223,9 +227,10 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx)\s+)?prettier",
+        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx|bun\s+x)\s+)?prettier",
         rtk_cmd: "rtk prettier",
         rewrite_prefixes: &[
+            "bun x prettier",
             "bunx prettier",
             "npm exec prettier",
             "npm prettier",
@@ -249,9 +254,10 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx)\s+)?next\s+build",
+        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx|bun\s+x)\s+)?next\s+build",
         rtk_cmd: "rtk next",
         rewrite_prefixes: &[
+            "bun x next build",
             "bunx next build",
             "next build",
             "npm exec next build",
@@ -275,11 +281,13 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx|bun)\s+)?jest(\s+run)?(\s|$)",
+        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx|bun\s+x|bun)\s+)?jest(\s+run)?(\s|$)",
         rtk_cmd: "rtk jest",
         rewrite_prefixes: &[
             "bun jest run",
             "bun jest",
+            "bun x jest run",
+            "bun x jest",
             "bunx jest run",
             "bunx jest",
             "jest run",
@@ -319,11 +327,13 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx|bun)\s+)?vitest(\s+run)?(\s|$)",
+        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx|bun\s+x|bun)\s+)?vitest(\s+run)?(\s|$)",
         rtk_cmd: "rtk vitest",
         rewrite_prefixes: &[
             "bun vitest run",
             "bun vitest",
+            "bun x vitest run",
+            "bun x vitest",
             "bunx vitest run",
             "bunx vitest",
             "npm exec vitest run",
@@ -363,9 +373,10 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx)\s+)?playwright",
+        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx|bun\s+x)\s+)?playwright",
         rtk_cmd: "rtk playwright",
         rewrite_prefixes: &[
+            "bun x playwright",
             "bunx playwright",
             "npm exec playwright",
             "npm playwright",
@@ -389,9 +400,10 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx)\s+)?prisma",
+        pattern: r"^((p?np(m|x)|p?npm\s+(exec|run|run-script)|npm\s+(rum|urn|x)|pnpm\s+dlx|bunx|bun\s+x)\s+)?prisma",
         rtk_cmd: "rtk prisma",
         rewrite_prefixes: &[
+            "bun x prisma",
             "bunx prisma",
             "npm exec prisma",
             "npm prisma",
