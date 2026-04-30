@@ -270,10 +270,12 @@ fn filter_bun_install(output: &str) -> String {
         result.push(trimmed.to_string());
     }
 
-    if result.is_empty() {
+    let joined = result.join("\n");
+    let output = joined.trim();
+    if output.is_empty() {
         "bun install: ok".to_string()
     } else {
-        result.join("\n")
+        output.to_string()
     }
 }
 
@@ -308,10 +310,12 @@ fn filter_bun_build(output: &str) -> String {
         }
     }
 
-    if result.is_empty() {
+    let joined = result.join("\n");
+    let output = joined.trim();
+    if output.is_empty() {
         "bun build: ok".to_string()
     } else {
-        result.join("\n")
+        output.to_string()
     }
 }
 
@@ -339,10 +343,12 @@ fn filter_bun_run(output: &str) -> String {
         result.push(line.to_string());
     }
 
-    if result.is_empty() {
+    let joined = result.join("\n");
+    let output = joined.trim();
+    if output.is_empty() {
         "ok".to_string()
     } else {
-        result.join("\n")
+        output.to_string()
     }
 }
 
