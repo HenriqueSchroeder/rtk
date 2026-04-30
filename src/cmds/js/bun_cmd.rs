@@ -169,7 +169,7 @@ fn filter_bun_test(output: &str) -> String {
                 failures.push(buf_line.to_string());
             }
             error_buffer.clear();
-            failures.push(line.to_string());
+            failures.push(trimmed.to_string());
             continue;
         }
 
