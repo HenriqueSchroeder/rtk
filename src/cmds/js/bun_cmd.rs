@@ -148,6 +148,11 @@ fn filter_bun_test(output: &str) -> String {
     for line in &lines {
         let trimmed = line.trim();
 
+        // Skip empty lines upfront — never buffer or match against them
+        if trimmed.is_empty() {
+            continue;
+        }
+
         // "X tests failed:" trailing section — skip (duplicates already captured)
         if BUN_TESTS_FAILED_RE.is_match(trimmed) {
             in_failed_summary = true;
@@ -155,7 +160,7 @@ fn filter_bun_test(output: &str) -> String {
             continue;
         }
         if in_failed_summary {
-            if is_fail_marker(trimmed) || trimmed.is_empty() {
+            if is_fail_marker(trimmed) {
                 continue;
             }
             in_failed_summary = false;
@@ -188,11 +193,6 @@ fn filter_bun_test(output: &str) -> String {
         {
             error_buffer.clear();
             summary_lines.push(trimmed);
-            continue;
-        }
-
-        // Skip empty lines (don't buffer)
-        if trimmed.is_empty() {
             continue;
         }
 
