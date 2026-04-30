@@ -218,11 +218,12 @@ fn filter_bun_test(output: &str) -> String {
         result.push("bun test: completed".to_string());
     }
 
-    let output = result.join("\n");
-    if output.trim().is_empty() {
+    let joined = result.join("\n");
+    let output = joined.trim();
+    if output.is_empty() {
         "bun test: completed".to_string()
     } else {
-        output
+        output.to_string()
     }
 }
 
