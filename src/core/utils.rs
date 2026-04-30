@@ -294,7 +294,7 @@ pub fn package_manager_exec(tool: &str) -> Command {
         match pm {
             "bun" => {
                 let mut c = resolved_command("bunx");
-                c.arg(tool);
+                c.arg("--").arg(tool);
                 c
             }
             "pnpm" => {
