@@ -130,6 +130,11 @@ pub fn run_passthrough(args: &[OsString], verbose: u8) -> Result<i32> {
     runner::run_passthrough("bun", args, verbose)
 }
 
+pub fn run_tool(args: &[String], verbose: u8) -> Result<i32> {
+    let os_args: Vec<OsString> = args.iter().map(Into::into).collect();
+    runner::run_passthrough("bunx", &os_args, verbose)
+}
+
 /// Filter bun test output: strip passing tests, keep failures and summary.
 ///
 /// Handles both TTY format (✓/✗) and piped format ((pass)/(fail)).

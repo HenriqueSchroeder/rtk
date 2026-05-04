@@ -1636,48 +1636,16 @@ fn route_bunx(args: &[String], verbose: u8) -> Result<i32> {
                     "db" if args.len() > 2 && args[2] == "push" => {
                         prisma_cmd::run(prisma_cmd::PrismaCommand::DbPush, &args[3..], verbose)
                     }
-                    _ => {
-                        let timer = core::tracking::TimedExecution::start();
-                        let mut cmd = core::utils::resolved_command("bunx");
-                        for arg in args {
-                            cmd.arg(arg);
-                        }
-                        let status = cmd.status().context("Failed to run bunx prisma")?;
-                        let args_str = args.join(" ");
-                        timer.track_passthrough(
-                            &format!("bunx {}", args_str),
-                            &format!("rtk bunx {} (passthrough)", args_str),
-                        );
-                        Ok(core::utils::exit_code_from_status(&status, "bunx prisma"))
-                    }
+                    _ => bun_cmd::run_tool(args, verbose),
                 }
             } else {
-                let timer = core::tracking::TimedExecution::start();
-                let status = core::utils::resolved_command("bunx")
-                    .arg("prisma")
-                    .status()
-                    .context("Failed to run bunx prisma")?;
-                timer.track_passthrough("bunx prisma", "rtk bunx prisma (passthrough)");
-                Ok(core::utils::exit_code_from_status(&status, "bunx prisma"))
+                bun_cmd::run_tool(args, verbose)
             }
         }
         "next" => next_cmd::run(&args[1..], verbose),
         "prettier" => prettier_cmd::run(&args[1..], verbose),
         "playwright" => playwright_cmd::run(&args[1..], verbose),
-        _ => {
-            let timer = core::tracking::TimedExecution::start();
-            let mut cmd = core::utils::resolved_command("bunx");
-            for arg in args {
-                cmd.arg(arg);
-            }
-            let status = cmd.status().context("Failed to run bunx")?;
-            let args_str = args.join(" ");
-            timer.track_passthrough(
-                &format!("bunx {}", args_str),
-                &format!("rtk bunx {} (passthrough)", args_str),
-            );
-            Ok(core::utils::exit_code_from_status(&status, "bunx"))
-        }
+        _ => bun_cmd::run_tool(args, verbose),
     }
 }
 
