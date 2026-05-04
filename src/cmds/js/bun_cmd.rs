@@ -39,6 +39,7 @@ lazy_static! {
 pub fn test(args: &[String], verbose: u8) -> Result<i32> {
     let mut cmd = resolved_command("bun");
     cmd.arg("test");
+    cmd.env("LC_ALL", "C");
     for arg in args {
         cmd.arg(arg);
     }
@@ -59,6 +60,7 @@ pub fn test(args: &[String], verbose: u8) -> Result<i32> {
 pub fn install(args: &[String], verbose: u8, skip_env: bool) -> Result<i32> {
     let mut cmd = resolved_command("bun");
     cmd.arg("install");
+    cmd.env("LC_ALL", "C");
     for arg in args {
         cmd.arg(arg);
     }
@@ -82,6 +84,7 @@ pub fn install(args: &[String], verbose: u8, skip_env: bool) -> Result<i32> {
 pub fn build(args: &[String], verbose: u8) -> Result<i32> {
     let mut cmd = resolved_command("bun");
     cmd.arg("build");
+    cmd.env("LC_ALL", "C");
     for arg in args {
         cmd.arg(arg);
     }
@@ -102,6 +105,7 @@ pub fn build(args: &[String], verbose: u8) -> Result<i32> {
 pub fn run(script: &str, args: &[String], verbose: u8, skip_env: bool) -> Result<i32> {
     let mut cmd = resolved_command("bun");
     cmd.arg("run").arg(script);
+    cmd.env("LC_ALL", "C");
     for arg in args {
         cmd.arg(arg);
     }
