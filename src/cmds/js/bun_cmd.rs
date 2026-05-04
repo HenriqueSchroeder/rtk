@@ -224,13 +224,13 @@ fn filter_bun_test(output: &str) -> String {
             result.push(line.to_string());
         }
     } else {
-        result.push("bun test: completed".to_string());
+        result.push("ok".to_string());
     }
 
     let joined = result.join("\n");
     let output = joined.trim();
     if output.is_empty() {
-        "bun test: completed".to_string()
+        "ok".to_string()
     } else {
         output.to_string()
     }
@@ -283,7 +283,7 @@ fn filter_bun_install(output: &str) -> String {
     let joined = result.join("\n");
     let output = joined.trim();
     if output.is_empty() {
-        "bun install: ok".to_string()
+        "ok".to_string()
     } else {
         output.to_string()
     }
@@ -323,7 +323,7 @@ fn filter_bun_build(output: &str) -> String {
     let joined = result.join("\n");
     let output = joined.trim();
     if output.is_empty() {
-        "bun build: ok".to_string()
+        "ok".to_string()
     } else {
         output.to_string()
     }
@@ -415,7 +415,7 @@ mod tests {
     #[test]
     fn test_filter_bun_test_empty() {
         let output = filter_bun_test("");
-        assert!(output.is_empty() || output == "bun test: completed");
+        assert!(output.is_empty() || output == "ok");
     }
 
     #[test]
@@ -468,13 +468,13 @@ mod tests {
     #[test]
     fn test_filter_bun_install_empty() {
         let output = filter_bun_install("\n\n");
-        assert_eq!(output, "bun install: ok");
+        assert_eq!(output, "ok");
     }
 
     #[test]
     fn test_filter_bun_build_empty() {
         let output = filter_bun_build("");
-        assert_eq!(output, "bun build: ok");
+        assert_eq!(output, "ok");
     }
 
     #[test]
