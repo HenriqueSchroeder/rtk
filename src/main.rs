@@ -1617,6 +1617,70 @@ where
     }
 }
 
+fn route_bunx(args: &[String], verbose: u8) -> Result<i32> {
+    if args.is_empty() {
+        anyhow::bail!("bunx requires a command argument");
+    }
+    match args[0].as_str() {
+        "tsc" | "typescript" => tsc_cmd::run(&args[1..], verbose),
+        "eslint" | "biome" => lint_cmd::run(&args[1..], verbose),
+        "jest" => vitest_cmd::run_test(vitest_cmd::TestFramework::Jest, &args[1..], verbose),
+        "vitest" => vitest_cmd::run_test(vitest_cmd::TestFramework::Vitest, &args[1..], verbose),
+        "prisma" => {
+            if args.len() > 1 {
+                let prisma_args: Vec<String> = args[2..].to_vec();
+                match args[1].as_str() {
+                    "generate" => {
+                        prisma_cmd::run(prisma_cmd::PrismaCommand::Generate, &prisma_args, verbose)
+                    }
+                    "db" if args.len() > 2 && args[2] == "push" => {
+                        prisma_cmd::run(prisma_cmd::PrismaCommand::DbPush, &args[3..], verbose)
+                    }
+                    _ => {
+                        let timer = core::tracking::TimedExecution::start();
+                        let mut cmd = core::utils::resolved_command("bunx");
+                        for arg in args {
+                            cmd.arg(arg);
+                        }
+                        let status = cmd.status().context("Failed to run bunx prisma")?;
+                        let args_str = args.join(" ");
+                        timer.track_passthrough(
+                            &format!("bunx {}", args_str),
+                            &format!("rtk bunx {} (passthrough)", args_str),
+                        );
+                        Ok(core::utils::exit_code_from_status(&status, "bunx prisma"))
+                    }
+                }
+            } else {
+                let timer = core::tracking::TimedExecution::start();
+                let status = core::utils::resolved_command("bunx")
+                    .arg("prisma")
+                    .status()
+                    .context("Failed to run bunx prisma")?;
+                timer.track_passthrough("bunx prisma", "rtk bunx prisma (passthrough)");
+                Ok(core::utils::exit_code_from_status(&status, "bunx prisma"))
+            }
+        }
+        "next" => next_cmd::run(&args[1..], verbose),
+        "prettier" => prettier_cmd::run(&args[1..], verbose),
+        "playwright" => playwright_cmd::run(&args[1..], verbose),
+        _ => {
+            let timer = core::tracking::TimedExecution::start();
+            let mut cmd = core::utils::resolved_command("bunx");
+            for arg in args {
+                cmd.arg(arg);
+            }
+            let status = cmd.status().context("Failed to run bunx")?;
+            let args_str = args.join(" ");
+            timer.track_passthrough(
+                &format!("bunx {}", args_str),
+                &format!("rtk bunx {} (passthrough)", args_str),
+            );
+            Ok(core::utils::exit_code_from_status(&status, "bunx"))
+        }
+    }
+}
+
 fn run_cli() -> Result<i32> {
     // Fire-and-forget telemetry ping (1/day, non-blocking)
     core::telemetry::maybe_ping();
@@ -2308,85 +2372,24 @@ fn run_cli() -> Result<i32> {
                 }
                 bun_cmd::run(&args[0], &args[1..], cli.verbose, cli.skip_env)?
             }
-            BunCommands::Other(args) => bun_cmd::run_passthrough(&args, cli.verbose)?,
+            BunCommands::Other(args) => {
+                if args
+                    .first()
+                    .map(|a| a.to_string_lossy() == "x")
+                    .unwrap_or(false)
+                {
+                    let rest: Vec<String> = args[1..]
+                        .iter()
+                        .map(|a| a.to_string_lossy().into_owned())
+                        .collect();
+                    route_bunx(&rest, cli.verbose)?
+                } else {
+                    bun_cmd::run_passthrough(&args, cli.verbose)?
+                }
+            }
         },
 
-        Commands::Bunx { args } => {
-            if args.is_empty() {
-                anyhow::bail!("bunx requires a command argument");
-            }
-
-            // Intelligent routing: delegate to specialized filters
-            match args[0].as_str() {
-                "tsc" | "typescript" => tsc_cmd::run(&args[1..], cli.verbose)?,
-                "eslint" | "biome" => lint_cmd::run(&args[1..], cli.verbose)?,
-                "jest" => {
-                    vitest_cmd::run_test(vitest_cmd::TestFramework::Jest, &args[1..], cli.verbose)?
-                }
-                "vitest" => vitest_cmd::run_test(
-                    vitest_cmd::TestFramework::Vitest,
-                    &args[1..],
-                    cli.verbose,
-                )?,
-                "prisma" => {
-                    if args.len() > 1 {
-                        let prisma_args: Vec<String> = args[2..].to_vec();
-                        match args[1].as_str() {
-                            "generate" => prisma_cmd::run(
-                                prisma_cmd::PrismaCommand::Generate,
-                                &prisma_args,
-                                cli.verbose,
-                            )?,
-                            "db" if args.len() > 2 && args[2] == "push" => prisma_cmd::run(
-                                prisma_cmd::PrismaCommand::DbPush,
-                                &args[3..],
-                                cli.verbose,
-                            )?,
-                            _ => {
-                                let timer = core::tracking::TimedExecution::start();
-                                let mut cmd = core::utils::resolved_command("bunx");
-                                for arg in &args {
-                                    cmd.arg(arg);
-                                }
-                                let status = cmd.status().context("Failed to run bunx prisma")?;
-                                let args_str = args.join(" ");
-                                timer.track_passthrough(
-                                    &format!("bunx {}", args_str),
-                                    &format!("rtk bunx {} (passthrough)", args_str),
-                                );
-                                core::utils::exit_code_from_status(&status, "bunx prisma")
-                            }
-                        }
-                    } else {
-                        let timer = core::tracking::TimedExecution::start();
-                        let status = core::utils::resolved_command("bunx")
-                            .arg("prisma")
-                            .status()
-                            .context("Failed to run bunx prisma")?;
-                        timer.track_passthrough("bunx prisma", "rtk bunx prisma (passthrough)");
-                        core::utils::exit_code_from_status(&status, "bunx prisma")
-                    }
-                }
-                "next" => next_cmd::run(&args[1..], cli.verbose)?,
-                "prettier" => prettier_cmd::run(&args[1..], cli.verbose)?,
-                "playwright" => playwright_cmd::run(&args[1..], cli.verbose)?,
-                _ => {
-                    // Generic passthrough via bun run
-                    let timer = core::tracking::TimedExecution::start();
-                    let mut cmd = core::utils::resolved_command("bunx");
-                    for arg in &args {
-                        cmd.arg(arg);
-                    }
-                    let status = cmd.status().context("Failed to run bunx")?;
-                    let args_str = args.join(" ");
-                    timer.track_passthrough(
-                        &format!("bunx {}", args_str),
-                        &format!("rtk bunx {} (passthrough)", args_str),
-                    );
-                    core::utils::exit_code_from_status(&status, "bunx")
-                }
-            }
-        }
+        Commands::Bunx { args } => route_bunx(&args, cli.verbose)?,
 
         Commands::Curl { args } => curl_cmd::run(&args, cli.verbose)?,
 
