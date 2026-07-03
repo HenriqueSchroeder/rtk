@@ -3241,6 +3241,8 @@ mod tests {
             "cargo",
             "npm",
             "npx",
+            "bun",
+            "bunx",
             "curl",
             "ruff",
             "pytest",
