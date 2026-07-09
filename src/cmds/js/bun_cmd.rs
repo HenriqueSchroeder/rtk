@@ -115,7 +115,11 @@ pub fn build(args: &[String], verbose: u8) -> Result<i32> {
 pub fn run(script: &str, args: &[String], verbose: u8, skip_env: bool) -> Result<i32> {
     let mut cmd = resolved_command("bun");
     cmd.arg("run").arg(script);
-    cmd.env("LC_ALL", "C");
+    // NOTE: unlike test/install/build we do NOT force LC_ALL=C here — `bun run`
+    // executes an arbitrary user script, and overriding the locale for the whole
+    // child process tree changes its behaviour (e.g. a Python build step would
+    // fall back to ASCII stdio). filter_bun_run does not parse structured output,
+    // so consistent locale isn't needed.
     for arg in args {
         cmd.arg(arg);
     }
@@ -325,7 +329,11 @@ fn filter_bun_build(output: &str) -> String {
             continue;
         }
         // Keep errors and warnings
-        if trimmed.contains("error") || trimmed.contains("warn") || trimmed.contains("Error") {
+        if trimmed.contains("error")
+            || trimmed.contains("warn")
+            || trimmed.contains("Error")
+            || trimmed.contains("Warn")
+        {
             result.push(trimmed.to_string());
             continue;
         }
