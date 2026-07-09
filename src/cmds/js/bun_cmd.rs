@@ -8,18 +8,28 @@ use regex::Regex;
 use std::ffi::OsString;
 
 lazy_static! {
-    /// Matches bun test summary line: "X pass, Y fail, Z skip" (with optional ANSI)
+    /// Bun's test summary lines: " N pass" / " N fail" / " N skip" / " N expect() calls".
+    /// Anchored to end-of-line (or `expect()`) so ordinary console output like
+    /// "5 passengers boarded" is never mistaken for the "N pass" summary.
     static ref BUN_TEST_SUMMARY_RE: Regex =
-        Regex::new(r"^\s*\d+\s+pass").unwrap();
+        Regex::new(r"^\s*\d+\s+pass\s*$").unwrap();
     static ref BUN_TEST_FAIL_COUNT_RE: Regex =
-        Regex::new(r"^\s*\d+\s+fail$").unwrap();
+        Regex::new(r"^\s*\d+\s+fail\s*$").unwrap();
     static ref BUN_TEST_SKIP_RE: Regex =
-        Regex::new(r"^\s*\d+\s+skip").unwrap();
+        Regex::new(r"^\s*\d+\s+skip\s*$").unwrap();
     static ref BUN_TEST_EXPECT_RE: Regex =
-        Regex::new(r"^\s*\d+\s+expect").unwrap();
+        Regex::new(r"^\s*\d+\s+expect\(\)").unwrap();
     /// Matches "X tests failed:" trailing summary section
     static ref BUN_TESTS_FAILED_RE: Regex =
         Regex::new(r"^\d+\s+tests?\s+failed:").unwrap();
+
+    /// Real bun test result markers ALWAYS end with a timing suffix like `[0.08ms]`.
+    /// Requiring it prevents app console output (e.g. `✓ Cache refreshed`,
+    /// `FAILED to connect`) from being misread as pass/fail markers.
+    static ref BUN_FAIL_MARKER_RE: Regex =
+        Regex::new(r"^(✗|✘|\(fail\)).*\[\d+(\.\d+)?(ms|s)\]\s*$").unwrap();
+    static ref BUN_PASS_MARKER_RE: Regex =
+        Regex::new(r"^(✓|✔|\(pass\)).*\[\d+(\.\d+)?(ms|s)\]\s*$").unwrap();
 
     /// Matches bun install summary: "bun install v1.x (Xms)" or "X packages installed"
     static ref BUN_INSTALL_DONE_RE: Regex =
@@ -223,8 +233,18 @@ fn filter_bun_test(output: &str) -> String {
         for line in &summary_lines {
             result.push(line.to_string());
         }
-    } else {
-        result.push("ok".to_string());
+    } else if !has_failures {
+        // No pass/fail markers and no summary were recognized. Rather than
+        // reporting a misleading "ok", surface whatever bun actually printed
+        // (e.g. a module-resolution or syntax error that aborts before any
+        // test runs) so a real failure is never hidden.
+        if error_buffer.is_empty() {
+            result.push("ok".to_string());
+        } else {
+            for line in &error_buffer {
+                result.push(line.to_string());
+            }
+        }
     }
 
     let joined = result.join("\n");
@@ -237,11 +257,11 @@ fn filter_bun_test(output: &str) -> String {
 }
 
 fn is_fail_marker(line: &str) -> bool {
-    line.starts_with('✗') || line.starts_with('✘') || line.starts_with("(fail)") || line.starts_with("FAIL")
+    BUN_FAIL_MARKER_RE.is_match(line)
 }
 
 fn is_pass_marker(line: &str) -> bool {
-    line.starts_with('✓') || line.starts_with('✔') || line.starts_with("(pass)")
+    BUN_PASS_MARKER_RE.is_match(line)
 }
 
 fn is_test_file_header(line: &str) -> bool {
@@ -534,5 +554,69 @@ mod tests {
         assert!(output.contains("FAILURES:"), "Missing FAILURES for TTY format:\n{}", output);
         assert!(output.contains("Expected:"), "Missing error context for TTY format:\n{}", output);
         assert!(output.contains("1 pass"), "Missing summary for TTY format:\n{}", output);
+    }
+
+    #[test]
+    fn test_filter_bun_test_load_failure_not_ok() {
+        // A module/syntax error aborts before any test runs — no markers, no
+        // summary. Must NOT collapse to a misleading "ok"; the error must survive.
+        let input = "bun test v1.1.38 (abc)\n\nerror: Cannot find module 'foo' from 'test.ts'\n      at resolve (bun:internal)\n";
+        let output = filter_bun_test(input);
+        assert_ne!(output, "ok", "load failure must not be reported as ok:\n{}", output);
+        assert!(
+            output.contains("Cannot find module"),
+            "error text must survive:\n{}",
+            output
+        );
+    }
+
+    #[test]
+    fn test_filter_bun_test_app_log_fail_prefix_no_false_failure() {
+        // An app logging a line starting with "FAIL..." during a passing test
+        // must not fabricate a failure — "FAIL" is not a bun marker.
+        let input = "bun test v1.1.38 (abc)\n\napp.test.ts:\nFAILED to connect to db, retrying...\n(pass) connects after retry [1.00ms]\n\n 1 pass\n 0 fail\n 1 expect() calls\nRan 1 tests across 1 files. [5.00ms]\n";
+        let output = filter_bun_test(input);
+        assert!(
+            !output.contains("FAILURES:"),
+            "must not fabricate failures from app logs:\n{}",
+            output
+        );
+        assert!(output.contains("1 pass"), "summary must survive:\n{}", output);
+    }
+
+    #[test]
+    fn test_filter_bun_test_app_log_checkmark_preserves_context() {
+        // An app log starting with ✓ (no timing suffix) must not be mistaken for
+        // a pass marker and clear the buffered error context of a real failure.
+        let input = "bun test v1.1.38 (abc)\n\napp.test.ts:\n  Expected: 1\n  Received: 2\n✓ cache refreshed after retry\n(fail) computes value [1.00ms]\n\n 0 pass\n 1 fail\n 1 expect() calls\nRan 1 tests across 1 files. [3.00ms]\n";
+        let output = filter_bun_test(input);
+        assert!(
+            output.contains("FAILURES:"),
+            "real failure must be reported:\n{}",
+            output
+        );
+        assert!(
+            output.contains("Expected:") && output.contains("Received:"),
+            "error context must be preserved:\n{}",
+            output
+        );
+    }
+
+    #[test]
+    fn test_filter_bun_test_app_log_pass_word_not_summary() {
+        // A console line like "5 passengers ..." must not be misread as the
+        // "N pass" summary line (word-boundary bug).
+        let input = "bun test v1.1.38 (abc)\n\napp.test.ts:\n  Expected: 5\n  Received: 3\n5 passengers boarded before the fail\n(fail) boarding count [1.00ms]\n\n 0 pass\n 1 fail\n 1 expect() calls\nRan 1 tests across 1 files. [2.00ms]\n";
+        let output = filter_bun_test(input);
+        assert!(
+            output.contains("Expected:") && output.contains("Received:"),
+            "context must be preserved, not misfiled as summary:\n{}",
+            output
+        );
+        assert!(
+            output.contains("0 pass") && output.contains("1 fail"),
+            "real summary must survive:\n{}",
+            output
+        );
     }
 }
