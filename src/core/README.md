@@ -102,7 +102,7 @@ Key functions available to all command modules:
 | `strip_ansi(text)` | Remove ANSI escape/color codes |
 | `resolved_command(name)` | Find command in PATH, returns `Command` |
 | `tool_exists(name)` | Check if a CLI tool is available |
-| `detect_package_manager()` | Detect pnpm/yarn/npm from lockfiles |
+| `detect_package_manager()` | Detect bun/pnpm/yarn/npm from lockfiles |
 | `package_manager_exec(tool)` | Build `Command` using detected package manager |
 | `ruby_exec(tool)` | Auto-detect `bundle exec` when `Gemfile` exists |
 | `count_tokens(text)` | Estimate tokens: `ceil(chars / 4.0)` |

@@ -263,13 +263,14 @@ pub fn count_tokens(text: &str) -> usize {
 }
 
 /// Detect the package manager used in the current directory.
-/// Returns "pnpm", "yarn", or "npm" based on lockfile presence.
+/// Returns "bun", "pnpm", "yarn", or "npm" based on lockfile presence.
 ///
 /// # Examples
 /// ```no_run
 /// use rtk::utils::detect_package_manager;
 /// let pm = detect_package_manager();
-/// // Returns "pnpm" if pnpm-lock.yaml exists, "yarn" if yarn.lock, else "npm"
+/// // Returns "bun" if bun.lockb/bun.lock exists, "pnpm" if pnpm-lock.yaml,
+/// // "yarn" if yarn.lock, else "npm"
 /// ```
 #[allow(dead_code)]
 pub fn detect_package_manager() -> &'static str {
@@ -619,7 +620,7 @@ mod tests {
         // In the test environment (rtk repo), there's no JS lockfile
         // so it should default to "npm"
         let pm = detect_package_manager();
-        assert!(["pnpm", "yarn", "npm"].contains(&pm));
+        assert!(["bun", "pnpm", "yarn", "npm"].contains(&pm));
     }
 
     #[test]

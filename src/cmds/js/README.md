@@ -4,7 +4,7 @@
 
 ## Specifics
 
-- `utils::package_manager_exec()` auto-detects pnpm/yarn/npm -- JS modules should use this instead of hardcoding a package manager
+- `utils::package_manager_exec()` auto-detects bun/pnpm/yarn/npm -- JS modules should use this instead of hardcoding a package manager
 - `lint_cmd.rs` is a cross-ecosystem router: detects Python projects and delegates to `mypy_cmd` or `ruff_cmd`
 - `vitest_cmd.rs` uses the `parser/` module for structured output parsing
 - `playwright_cmd.rs` uses the `parser/` module for test result extraction
