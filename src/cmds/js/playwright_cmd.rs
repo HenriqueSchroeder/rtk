@@ -248,6 +248,11 @@ pub fn run(args: &[String], verbose: u8) -> Result<i32> {
     // binaries. Always resolve through the package manager.
     let pm = detect_package_manager();
     let mut cmd = match pm {
+        "bun" => {
+            let mut c = resolved_command("bunx");
+            c.arg("--").arg("playwright");
+            c
+        }
         "pnpm" => {
             let mut c = resolved_command("pnpm");
             c.arg("exec").arg("--").arg("playwright");
