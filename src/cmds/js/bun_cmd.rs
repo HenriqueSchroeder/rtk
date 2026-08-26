@@ -3,48 +3,36 @@
 use crate::core::runner;
 use crate::core::utils::{resolved_command, strip_ansi};
 use anyhow::Result;
-use lazy_static::lazy_static;
 use regex::Regex;
 use std::ffi::OsString;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Bun's test summary lines: " N pass" / " N fail" / " N skip" / " N expect() calls".
-    /// Anchored to end-of-line (or `expect()`) so ordinary console output like
-    /// "5 passengers boarded" is never mistaken for the "N pass" summary.
-    static ref BUN_TEST_SUMMARY_RE: Regex =
-        Regex::new(r"^\s*\d+\s+pass\s*$").unwrap();
-    static ref BUN_TEST_FAIL_COUNT_RE: Regex =
-        Regex::new(r"^\s*\d+\s+fail\s*$").unwrap();
-    static ref BUN_TEST_SKIP_RE: Regex =
-        Regex::new(r"^\s*\d+\s+skip\s*$").unwrap();
-    static ref BUN_TEST_EXPECT_RE: Regex =
-        Regex::new(r"^\s*\d+\s+expect\(\)").unwrap();
-    /// Matches "X tests failed:" trailing summary section
-    static ref BUN_TESTS_FAILED_RE: Regex =
-        Regex::new(r"^\d+\s+tests?\s+failed:").unwrap();
+/// Bun's test summary lines: " N pass" / " N fail" / " N skip" / " N expect() calls".
+/// Anchored to end-of-line (or `expect()`) so ordinary console output like
+/// "5 passengers boarded" is never mistaken for the "N pass" summary.
+static BUN_TEST_SUMMARY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*\d+\s+pass\s*$").unwrap());
+static BUN_TEST_FAIL_COUNT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*\d+\s+fail\s*$").unwrap());
+static BUN_TEST_SKIP_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*\d+\s+skip\s*$").unwrap());
+static BUN_TEST_EXPECT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*\d+\s+expect\(\)").unwrap());
+/// Matches "X tests failed:" trailing summary section
+static BUN_TESTS_FAILED_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\d+\s+tests?\s+failed:").unwrap());
 
-    /// Real bun test result markers ALWAYS end with a timing suffix like `[0.08ms]`.
-    /// Requiring it prevents app console output (e.g. `✓ Cache refreshed`,
-    /// `FAILED to connect`) from being misread as pass/fail markers.
-    static ref BUN_FAIL_MARKER_RE: Regex =
-        Regex::new(r"^(✗|✘|\(fail\)).*\[\d+(\.\d+)?(ms|s)\]\s*$").unwrap();
-    static ref BUN_PASS_MARKER_RE: Regex =
-        Regex::new(r"^(✓|✔|\(pass\)).*\[\d+(\.\d+)?(ms|s)\]\s*$").unwrap();
+/// Real bun test result markers ALWAYS end with a timing suffix like `[0.08ms]`.
+/// Requiring it prevents app console output (e.g. `✓ Cache refreshed`,
+/// `FAILED to connect`) from being misread as pass/fail markers.
+static BUN_FAIL_MARKER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(✗|✘|\(fail\)).*\[\d+(\.\d+)?(ms|s)\]\s*$").unwrap());
+static BUN_PASS_MARKER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(✓|✔|\(pass\)).*\[\d+(\.\d+)?(ms|s)\]\s*$").unwrap());
 
-    /// Matches bun install summary: "bun install v1.x (Xms)" or "X packages installed"
-    static ref BUN_INSTALL_DONE_RE: Regex =
-        Regex::new(r"(?i)(\d+)\s+packages?\s+installed").unwrap();
-    static ref BUN_INSTALL_SPEED_RE: Regex =
-        Regex::new(r"\[\d+(\.\d+)?(ms|s)\]").unwrap();
-
-    /// Matches bun build output size lines
-    static ref BUN_BUILD_ENTRY_RE: Regex =
-        Regex::new(r"^\s*\S+\s+[\d.]+(KB|MB|B|GB)\s*$").unwrap();
-
-    /// Matches lines that are just whitespace or ANSI reset codes
-    static ref NOISE_LINE_RE: Regex =
-        Regex::new(r"^\s*(\x1b\[[0-9;]*m)*\s*$").unwrap();
-}
+/// Matches bun build output size lines
+static BUN_BUILD_ENTRY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*\S+\s+[\d.]+(KB|MB|B|GB)\s*$").unwrap());
 
 pub fn test(args: &[String], verbose: u8) -> Result<i32> {
     let mut cmd = resolved_command("bun");
