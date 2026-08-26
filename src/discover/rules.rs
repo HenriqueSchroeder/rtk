@@ -109,7 +109,7 @@ pub const RULES: &[RtkRule] = &[
         category: "PackageManager",
         savings_pct: 80.0,
         subcmd_savings: &[("test", 88.0), ("install", 85.0), ("build", 80.0)],
-        subcmd_status: &[],
+        ..RtkRule::DEFAULT
     },
     RtkRule {
         pattern: r"^(bun\s+x|bunx)(\s|$)",
@@ -117,8 +117,7 @@ pub const RULES: &[RtkRule] = &[
         rewrite_prefixes: &["bun x", "bunx"],
         category: "PackageManager",
         savings_pct: 70.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
+        ..RtkRule::DEFAULT
     },
     RtkRule {
         pattern: r"^(cat|head|tail)\s+",
