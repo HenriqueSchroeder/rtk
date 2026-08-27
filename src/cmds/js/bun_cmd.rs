@@ -114,15 +114,12 @@ pub fn build(args: &[String], verbose: u8) -> Result<i32> {
 
 pub fn run(script: &str, args: &[String], verbose: u8, skip_env: bool) -> Result<i32> {
     let mut cmd = resolved_command("bun");
-    cmd.arg("run").arg(script);
     // NOTE: unlike test/install/build we do NOT force LC_ALL=C here — `bun run`
     // executes an arbitrary user script, and overriding the locale for the whole
     // child process tree changes its behaviour (e.g. a Python build step would
     // fall back to ASCII stdio). filter_bun_run does not parse structured output,
     // so consistent locale isn't needed.
-    for arg in args {
-        cmd.arg(arg);
-    }
+    cmd.args(run_args(script, args));
     if skip_env {
         cmd.env("SKIP_ENV_VALIDATION", "1");
     }
@@ -138,6 +135,22 @@ pub fn run(script: &str, args: &[String], verbose: u8, skip_env: bool) -> Result
         filter_bun_run,
         runner::RunOptions::with_tee("bun-run"),
     )
+}
+
+/// argv for `bun run`.
+///
+/// `--silent` suppresses the `$ <cmd>` echo at the source, and it has to come
+/// before the script name or bun forwards it to the script. Stripping the echo
+/// from the output instead does not work: bun writes it to stderr while the
+/// script writes to stdout, and stdout lands first in the capture, so "drop the
+/// first $-prefixed line" eats a line of the script's own output.
+fn run_args(script: &str, args: &[String]) -> Vec<String> {
+    let mut argv = Vec::with_capacity(args.len() + 3);
+    argv.push("run".to_string());
+    argv.push("--silent".to_string());
+    argv.push(script.to_string());
+    argv.extend_from_slice(args);
+    argv
 }
 
 pub fn run_passthrough(args: &[OsString], verbose: u8) -> Result<i32> {
@@ -418,16 +431,15 @@ fn filter_bun_build(output: &str, exit_code: i32) -> String {
     finish(result, exit_code, "bun build")
 }
 
-/// Filter bun run output: drop the echoed command, keep the script's own output.
+/// Filter bun run output: keep the script's own output.
 ///
-/// Bun echoes the resolved script as a single `$ <cmd>` line before running it.
-/// Only that first line is dropped; a script printing its own `$`-prefixed
-/// lines (a shell transcript, a prompt) keeps them. Lines are never trimmed:
-/// this is passthrough of arbitrary output, where indentation is content.
+/// The `$ <cmd>` echo is suppressed by `--silent` in `run()`, so nothing here
+/// inspects `$`-prefixed lines: they all belong to the script. Lines are never
+/// trimmed either, this is passthrough of arbitrary output where indentation
+/// is content.
 fn filter_bun_run(output: &str, exit_code: i32) -> String {
     let clean = strip_ansi(output);
     let mut result = Vec::new();
-    let mut echo_dropped = false;
 
     for line in clean.lines() {
         let trimmed = line.trim();
@@ -436,10 +448,6 @@ fn filter_bun_run(output: &str, exit_code: i32) -> String {
             continue;
         }
         if BUN_BANNER_RE.is_match(trimmed) {
-            continue;
-        }
-        if !echo_dropped && trimmed.starts_with('$') {
-            echo_dropped = true;
             continue;
         }
 
@@ -679,7 +687,7 @@ mod tests {
     }
 
     #[test]
-    fn test_filter_bun_run_strips_echo_only() {
+    fn test_filter_bun_run_keeps_script_output() {
         let input = include_str!("../../../tests/fixtures/bun_run_script.txt");
         let output = filter_bun_run(input, 0);
 
@@ -687,21 +695,22 @@ mod tests {
     }
 
     #[test]
-    fn test_filter_bun_run_keeps_script_dollar_lines() {
-        // Bun echoes exactly one `$ cmd` line; the rest belongs to the script.
-        let input = "$ ./deploy.sh\n$ docker build .\n$ docker push\ndone\n";
+    fn test_filter_bun_run_keeps_every_dollar_line() {
+        // With `--silent` there is no echo to strip, so every `$` line is the
+        // script's. Dropping one used to eat real output: bun writes the echo
+        // to stderr and the script to stdout, and stdout lands first.
+        let input = "$HOME is not set\n$ docker build .\ndone\n";
         let output = filter_bun_run(input, 0);
 
-        assert!(
-            output.contains("$ docker build .") && output.contains("$ docker push"),
-            "script output was swallowed:\n{}",
-            output
-        );
-        assert!(
-            !output.contains("./deploy.sh"),
-            "bun's own echo should be dropped:\n{}",
-            output
-        );
+        assert_eq!(output, "$HOME is not set\n$ docker build .\ndone");
+    }
+
+    #[test]
+    fn test_bun_run_passes_silent_before_script() {
+        // `--silent` is a `bun run` flag: after the script name it would be
+        // forwarded to the script instead.
+        let argv = run_args("dev", &["--watch".to_string()]);
+        assert_eq!(argv, vec!["run", "--silent", "dev", "--watch"]);
     }
 
     #[test]

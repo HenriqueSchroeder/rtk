@@ -1,2 +1,1 @@
-$ echo hello from script
 hello from script
