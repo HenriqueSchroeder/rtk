@@ -1,11 +1,4 @@
-bun build v1.1.38 (a3e18c1b)
+Bundled 1 module in 9ms
 
-  src/index.ts → dist/index.js
-  src/utils/helpers.ts → dist/utils/helpers.js
-  src/components/App.tsx → dist/components/App.js
+  index.js  72 bytes  (entry point)
 
-  dist/index.js        45.2KB
-  dist/utils/helpers.js   12.8KB
-  dist/components/App.js  89.4KB
-
-Done in 156ms. Built 3 modules, total 147.4KB

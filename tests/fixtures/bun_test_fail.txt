@@ -1,39 +1,29 @@
-bun test v1.1.38 (a3e18c1b)
+bun test v1.3.14 (0d9b296a)
 
-src/utils/math.test.ts:
-(pass) adds two numbers [0.12ms]
-(pass) subtracts two numbers [0.05ms]
-  Expected: -6
-  Received: 6
+onlyfail.test.ts:
+1 | import { expect, test } from "bun:test";
+2 | import { add } from "./src/math";
+3 | 
+4 | test("wrong sum", () => { expect(add(1, 2)).toBe(5); });
+                                                ^
+error: expect(received).toBe(expected)
 
-    at src/utils/math.test.ts:15:3
-(fail) multiplies negative numbers [0.08ms]
+Expected: 5
+Received: 3
 
-src/utils/string.test.ts:
-(pass) capitalizes first letter [0.15ms]
-(pass) trims whitespace [0.02ms]
-  Expected: "HÉLLO"
-  Received: "HéLLO"
+      at <anonymous> (/home/user/project/onlyfail.test.ts:4:45)
+(fail) wrong sum [0.17ms]
+1 | import { expect, test } from "bun:test";
+2 | import { add } from "./src/math";
+3 | 
+4 | test("wrong sum", () => { expect(add(1, 2)).toBe(5); });
+5 | test("throws", () => { throw new Error("boom from the suite"); });
+                                                                ^
+error: boom from the suite
+      at <anonymous> (/home/user/project/onlyfail.test.ts:5:61)
+(fail) throws [0.04ms]
 
-    at src/utils/string.test.ts:28:3
-(fail) handles unicode characters [0.06ms]
-
-src/api/client.test.ts:
-(pass) fetches data successfully [3.12ms]
-  Timeout: test exceeded 5000ms
-  Expected fetch to be called 3 times, but was called 1 time
-
-    at src/api/client.test.ts:42:3
-(fail) retries on network failure [5001.00ms]
-(pass) sends auth headers [0.78ms]
-
-3 tests failed:
-(fail) multiplies negative numbers [0.08ms]
-(fail) handles unicode characters [0.06ms]
-(fail) retries on network failure [5001.00ms]
-
- 7 pass
- 3 fail
- 1 skip
- 15 expect() calls
-Ran 11 tests across 3 files. [5320.00ms]
+ 0 pass
+ 2 fail
+ 1 expect() calls
+Ran 2 tests across 1 file. [15.00ms]

@@ -1,34 +1,6 @@
-bun test v1.1.38 (a3e18c1b)
+bun test v1.3.14 (0d9b296a)
 
-src/utils/math.test.ts:
-(pass) adds two numbers [0.12ms]
-(pass) subtracts two numbers [0.05ms]
-(pass) multiplies two numbers [0.03ms]
-(pass) divides two numbers [0.04ms]
-(pass) handles division by zero [0.08ms]
-
-src/utils/string.test.ts:
-(pass) capitalizes first letter [0.15ms]
-(pass) trims whitespace [0.02ms]
-(pass) converts to camelCase [0.06ms]
-(pass) converts to snake_case [0.04ms]
-(pass) handles empty string [0.02ms]
-
-src/components/Button.test.tsx:
-(pass) renders correctly [2.45ms]
-(pass) handles click event [1.20ms]
-(pass) disables when loading [0.89ms]
-(pass) shows spinner when loading [1.05ms]
-(pass) applies custom className [0.34ms]
-
-src/api/client.test.ts:
-(pass) fetches data successfully [3.12ms]
-(pass) handles 404 error [1.56ms]
-(pass) retries on network failure [2.34ms]
-(pass) sends auth headers [0.78ms]
-(pass) handles timeout [1.92ms]
-
- 20 pass
+ 5 pass
  0 fail
- 20 expect() calls
-Ran 20 tests across 4 files. [245.00ms]
+ 5 expect() calls
+Ran 5 tests across 1 file. [11.00ms]
