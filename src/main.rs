@@ -1624,10 +1624,11 @@ where
 }
 
 fn route_bunx(args: &[String], verbose: u8) -> Result<i32> {
-    if args.is_empty() {
-        anyhow::bail!("bunx requires a command argument");
-    }
-    match args[0].as_str() {
+    let Some(tool) = args.first().map(|s| s.as_str()) else {
+        // Bare `bunx` / `bun x` prints its usage; don't turn that into an rtk error.
+        return bun_cmd::run_tool(args, verbose);
+    };
+    match tool {
         "tsc" | "typescript" => tsc_cmd::run(&args[1..], verbose),
         "eslint" | "biome" => lint_cmd::run(&args[1..], verbose),
         "jest" => vitest_cmd::run_test(vitest_cmd::TestFramework::Jest, &args[1..], verbose),
@@ -2351,9 +2352,12 @@ fn run_cli() -> Result<i32> {
             BunCommands::Build { args } => bun_cmd::build(&args, cli.verbose)?,
             BunCommands::Run { args } => {
                 if args.is_empty() {
-                    anyhow::bail!("bun run requires a script name");
+                    // Bare `bun run` lists the package scripts; pass it through
+                    // instead of failing, the way `rtk npm run` does.
+                    bun_cmd::run_passthrough(&[OsString::from("run")], cli.verbose)?
+                } else {
+                    bun_cmd::run(&args[0], &args[1..], cli.verbose, cli.skip_env)?
                 }
-                bun_cmd::run(&args[0], &args[1..], cli.verbose, cli.skip_env)?
             }
             BunCommands::Other(args) => {
                 if args
@@ -3775,6 +3779,30 @@ mod tests {
                 _ => panic!("Expected BunCommands::Run"),
             },
             _ => panic!("Expected Commands::Bun"),
+        }
+    }
+
+    #[test]
+    fn test_bun_run_bare_parses_without_script() {
+        // Bare `bun run` lists the package scripts, so it must parse and reach
+        // the passthrough instead of failing argument validation.
+        let cli = Cli::try_parse_from(["rtk", "bun", "run"]).unwrap();
+        match cli.command {
+            Commands::Bun { command } => match command {
+                BunCommands::Run { args } => assert!(args.is_empty()),
+                _ => panic!("Expected BunCommands::Run"),
+            },
+            _ => panic!("Expected Commands::Bun"),
+        }
+    }
+
+    #[test]
+    fn test_bunx_bare_parses_without_tool() {
+        // Bare `bunx` prints its usage; same reasoning as `bun run`.
+        let cli = Cli::try_parse_from(["rtk", "bunx"]).unwrap();
+        match cli.command {
+            Commands::Bunx { args } => assert!(args.is_empty()),
+            _ => panic!("Expected Commands::Bunx"),
         }
     }
 
