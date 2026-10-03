@@ -1623,6 +1623,38 @@ mod err_test_runner_tests {
         assert!(added.contains("1 todo"), "{added}");
     }
 
+    /// A run killed mid-flight (SIGKILL) prints the banner and nothing else:
+    /// no counts, no markers. The raw-tail fallback has to surface that, or an
+    /// aborted run reads as a silent success.
+    #[test]
+    fn test_bun_killed_run_is_not_reported_as_a_pass() {
+        let out = extract_test_summary(
+            include_str!("../../tests/fixtures/bun_test_crash_raw.txt"),
+            TestEcosystem::Bun,
+        );
+        assert!(out.contains("bun test v1.3.14"), "{out}");
+        assert!(!out.contains("pass"), "{out}");
+        assert!(!out.contains("SUMMARY:"), "{out}");
+    }
+
+    /// 40 failures in one run: the cap keeps ten and counts the rest, and the
+    /// footer still says how many tests actually ran.
+    #[test]
+    fn test_bun_failure_cap_counts_what_it_drops() {
+        let raw = include_str!("../../tests/fixtures/bun_test_many_failures_raw.txt");
+        let out = extract_test_summary(raw, TestEcosystem::Bun);
+        assert!(out.contains("(fail) case 0"), "{out}");
+        assert!(
+            out.contains(&format!("+{} more failures", 40 - MAX_RUNNER_FAILURES)),
+            "{out}"
+        );
+        assert!(out.contains("40 fail"), "{out}");
+        assert!(out.contains("Ran 40 tests"), "{out}");
+
+        let savings = 100.0 - (count_tokens(&out) as f64 / count_tokens(raw) as f64 * 100.0);
+        assert!(savings >= 60.0, "got {savings:.1}%");
+    }
+
     /// One red run per runtime carrying every failure shape at once.
     #[test]
     fn test_a_red_run_keeps_each_failure_and_its_reason() {
